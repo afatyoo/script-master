@@ -1,0 +1,8 @@
+= Pre peration Zimbra Rocky 9 dan 8 ansible 
+
+* Jalankan perintah berikut untuk installasi Ansible dirocky 
+----
+dnf install ansible-core
+----
+
+* Lalu download file pre-zimbra.yml dan inventory pada link berikut:
