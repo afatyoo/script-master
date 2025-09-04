@@ -5,4 +5,27 @@
 dnf install ansible-core
 ----
 
-* Lalu download file pre-zimbra.yml dan inventory pada link berikut:
+* Buat directory terpisah misal preperation Zimbra
+
+* Lalu download file pre-zimbra.yml dan inventory menggunakan perintah berikut:
+
+----
+wget -c https://github.com/afatyoo/script-master/blob/main/all-code-afatyo/inventory
+wget -c https://github.com/afatyoo/script-master/blob/main/all-code-afatyo/pre-zimbra-rocky9-8.yml
+----
+
+
+* Jika sudah edit file iventory sesuaikan dengan isian nya seperti hostname, domain, dan ip contohnya seperti ini isiannya:
+
+----
+[zimbra]
+192.168.13.24 ansible_user=root hostname=mail domain=afatyo.web.id ip_address=192.168.13.24
+----
+
+* Lalu jalankan perintah untuk mulai preperation nya:
+
+----
+ansible-playbook -i inventory pre-zimbra.yml
+----
+
+NOTE: Jika dijalankan di luar node zimbra nya pastikan bisa ssh tanpa password, berlaku juga sama jika di jalankan di node yang sama
