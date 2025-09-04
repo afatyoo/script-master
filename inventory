@@ -1,2 +1,0 @@
-[zimbra]
-192.168.13.24 ansible_user=root hostname=mail domain=afatyo.web.id ip_address=192.168.13.24
