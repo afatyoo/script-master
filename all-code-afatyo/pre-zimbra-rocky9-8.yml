@@ -1,10 +1,11 @@
 - name: Preparation Setup Zimbra on Rocky Linux
   hosts: zimbra
   become: yes
-  vars:
-    hostname: mail
-    domain: afatyo.web.id
-    ip_address: 192.168.13.23
+
+  tasks:
+    - name: Debug variables from inventory
+      ansible.builtin.debug:
+        msg: "Host={{ inventory_hostname }}, Hostname={{ hostname }}, Domain={{ domain }}, IP={{ ip_address }}"
 
   tasks:
     # === Basic preparation ===
