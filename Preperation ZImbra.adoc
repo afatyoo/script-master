@@ -1,4 +1,4 @@
-= Pre peration Zimbra Rocky 9 dan 8 ansible 
+= Pre peration Zimbra Rocky 9/8 dan Ubuntu 22 ansible 
 
 * Jalankan perintah berikut untuk installasi Ansible dirocky 
 ----
@@ -10,7 +10,7 @@ dnf install ansible-core
 * Lalu download file pre-zimbra.yml dan inventory menggunakan perintah berikut:
 
 ----
-wget -c https://github.com/afatyoo/script-master/blob/main/all-code-afatyo/inventory
+wget -c https://raw.githubusercontent.com/afatyoo/script-master/refs/heads/main/all-code-afatyo/inventory
 wget -c https://raw.githubusercontent.com/afatyoo/script-master/refs/heads/main/all-code-afatyo/pre-zimbra-rocky9-8.yml
 ----
 
