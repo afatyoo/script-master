@@ -4,7 +4,7 @@
 ----
 dnf install ansible-core
 ----
-* Jalankan perintah berikut untuk installasi Ansbibel di Ubuntu
+* Jalankan perintah berikut untuk installasi Ansbible di Ubuntu
 ----
 dnf install ansible-core
 ----
