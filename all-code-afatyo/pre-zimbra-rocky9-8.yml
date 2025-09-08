@@ -1,30 +1,40 @@
-- name: Preparation Setup Zimbra on Rocky Linux
+- name: Preparation Setup Zimbra
   hosts: zimbra
   become: yes
 
   tasks:
-    - name: Debug variables from inventory
+    - name: Debug target info
       ansible.builtin.debug:
-        msg: "Host={{ inventory_hostname }}, Hostname={{ hostname }}, Domain={{ domain }}, IP={{ ip_address }}"
+        msg: "Running on {{ ansible_distribution }} {{ ansible_distribution_major_version }} (hostname={{ hostname }}, domain={{ domain }}, ip={{ ip_address }})"
 
-  tasks:
-    # === Basic preparation ===
+    # === Disable SELinux & firewall (Rocky only) ===
     - name: Disable SELinux permanently
       ansible.builtin.replace:
         path: /etc/selinux/config
         regexp: '^SELINUX=.*'
         replace: 'SELINUX=disabled'
+      when: ansible_distribution == "Rocky"
 
     - name: Set SELinux enforcing 0 (runtime)
       ansible.builtin.command: setenforce 0
       ignore_errors: yes
+      when: ansible_distribution == "Rocky"
 
-    - name: Disable firewalld
+    - name: Disable firewalld (Rocky only)
       ansible.builtin.systemd:
         name: firewalld
         state: stopped
         enabled: no
+      when: ansible_distribution == "Rocky"
 
+    - name: Disable ufw (Ubuntu only)
+      ansible.builtin.systemd:
+        name: ufw
+        state: stopped
+        enabled: no
+      when: ansible_distribution == "Ubuntu"
+
+    # === Hosts & Hostname ===
     - name: Configure /etc/hosts
       ansible.builtin.copy:
         dest: /etc/hosts
@@ -36,18 +46,14 @@
       ansible.builtin.hostname:
         name: "{{ hostname }}.{{ domain }}"
 
-    - name: Update system packages
-      ansible.builtin.dnf:
-        name: "*"
-        state: latest
-        update_cache: yes
-
+    # === Packages (Rocky 8/9) ===
     - name: Enable EPEL repo
       ansible.builtin.dnf:
         name: epel-release
         state: present
+      when: ansible_distribution == "Rocky"
 
-    - name: Install Zimbra dependencies (Rocky 9)
+    - name: Install dependencies on Rocky
       ansible.builtin.dnf:
         name:
           - perl
@@ -79,59 +85,70 @@
           - bind-utils
         state: present
         enablerepo: epel
-      when: ansible_distribution_major_version | int == 9
+      when: ansible_distribution == "Rocky"
 
-    - name: Install Zimbra dependencies (Rocky 8)
-      ansible.builtin.dnf:
-        name:
-          - perl
-          - perl-core
-          - wget
-          - screen
-          - openssh-clients
-          - openssh-server
-          - unzip
-          - nmap
-          - sed
-          - nc
-          - sysstat
-          - libaio
-          - rsync
-          - telnet
-          - libssh2
-          - libnsl
-          - libicu
-          - tar
-          - mod_ssl
-          - perl-Encode-HanExtra
-          - pcre-devel
-          - bzip2-devel
-          - ncurses-compat-libs
-          - swaks
-          - vim
-          - bind
-          - bind-utils
-        state: present
-        enablerepo: epel
-      when: ansible_distribution_major_version | int == 8
-
-
-    - name: Install aspell (Rocky 9 CRB)
+    - name: Install aspell (Rocky 9)
       ansible.builtin.dnf:
         name: aspell
         enablerepo: crb
         state: present
-      when: ansible_distribution_major_version | int == 9
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 9
 
-    - name: Install aspell (Rocky 8 PowerTools)
+    - name: Install aspell (Rocky 8)
       ansible.builtin.dnf:
         name: aspell
         enablerepo: PowerTools
         state: present
-      when: ansible_distribution_major_version | int == 8
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 8
 
-    # === DNS setup ===
-    - name: Overwrite named.conf (Rocky 9 minimal config)
+    - name: Wait for apt lock to be released
+      ansible.builtin.shell: |
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          echo "Waiting for apt lock..."
+          sleep 5
+        done
+      changed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+    # === Packages (Ubuntu 22) ===
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Install dependencies on Ubuntu
+      ansible.builtin.apt:
+        name:
+          - perl
+          - wget
+          - screen
+          - openssh-client
+          - openssh-server
+          - unzip
+          - nmap
+          - netcat
+          - sysstat
+          - libaio1
+          - rsync
+          - telnet
+          - libssh2-1
+          - libnsl-dev
+          - libicu70
+          - tar
+          - apache2
+          - ssl-cert
+          - pcre2-utils
+          - bzip2
+          - swaks
+          - vim
+          - bind9
+          - dnsutils
+          - aspell
+        state: present
+      when: ansible_distribution == "Ubuntu"
+
+    # === DNS Config Rocky ===
+    - name: Configure named.conf (Rocky 9 minimal)
       ansible.builtin.copy:
         dest: /etc/named.conf
         content: |
@@ -144,51 +161,24 @@
               forwarders { 8.8.8.8; 1.1.1.1; };
           };
 
-          logging {
-              channel default_debug {
-                  file "data/named.run";
-                  severity dynamic;
-              };
-          };
-
-          zone "." IN {
-              type hint;
-              file "named.ca";
-          };
-
           zone "{{ domain }}" IN {
               type master;
               file "db.{{ domain }}";
               allow-update { none; };
           };
-      when: ansible_distribution_major_version | int == 9
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 9
 
-    - name: Overwrite named.conf (Rocky 8 default style)
+    - name: Configure named.conf (Rocky 8 style)
       ansible.builtin.copy:
         dest: /etc/named.conf
         content: |
           options {
               listen-on port 53 { any; };
               listen-on-v6 port 53 { any; };
-              directory       "/var/named";
-              dump-file       "/var/named/data/cache_dump.db";
-              statistics-file "/var/named/data/named_stats.txt";
-              memstatistics-file "/var/named/data/named_mem_stats.txt";
-              allow-query     { any; };
+              directory "/var/named";
+              allow-query { any; };
               recursion yes;
               forwarders { 8.8.8.8; 1.1.1.1; };
-          };
-
-          logging {
-              channel default_debug {
-                  file "data/named.run";
-                  severity dynamic;
-              };
-          };
-
-          zone "." IN {
-              type hint;
-              file "named.ca";
           };
 
           zone "{{ domain }}" IN {
@@ -196,9 +186,35 @@
               file "db.{{ domain }}";
               allow-update { none; };
           };
-      when: ansible_distribution_major_version | int == 8
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 8
 
-    - name: Create zone file
+    # === DNS Config Ubuntu ===
+    - name: Configure named.conf.options (Ubuntu bind9)
+      ansible.builtin.copy:
+        dest: /etc/bind/named.conf.options
+        content: |
+          options {
+              directory "/var/cache/bind";
+              recursion yes;
+              allow-query { any; };
+              forwarders { 8.8.8.8; 1.1.1.1; };
+              listen-on { any; };
+              listen-on-v6 { any; };
+          };
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Configure zone (Ubuntu bind9)
+      ansible.builtin.copy:
+        dest: /etc/bind/named.conf.local
+        content: |
+          zone "{{ domain }}" {
+              type master;
+              file "/etc/bind/db.{{ domain }}";
+          };
+      when: ansible_distribution == "Ubuntu"
+
+    # === Zone file (Rocky & Ubuntu) ===
+    - name: Create zone file (Rocky)
       ansible.builtin.copy:
         dest: "/var/named/db.{{ domain }}"
         content: |
@@ -216,15 +232,42 @@
         owner: root
         group: named
         mode: '0644'
+      when: ansible_distribution == "Rocky"
 
-    - name: Restart and enable named
+    - name: Create zone file (Ubuntu)
+      ansible.builtin.copy:
+        dest: "/etc/bind/db.{{ domain }}"
+        content: |
+          $TTL 1D
+          @   IN SOA  ns1.{{ domain }}. root.{{ domain }}. (
+                                  0       ; serial
+                                  1D      ; refresh
+                                  1H      ; retry
+                                  1W      ; expire
+                                  3H )    ; minimum
+          @       IN  NS  ns1.{{ domain }}.
+          @       IN  MX  0 {{ hostname }}.{{ domain }}.
+          ns1     IN  A   {{ ip_address }}
+          {{ hostname }} IN  A   {{ ip_address }}
+      when: ansible_distribution == "Ubuntu"
+
+    # === Restart DNS ===
+    - name: Restart and enable named (Rocky)
       ansible.builtin.systemd:
         name: named
         state: restarted
         enabled: yes
+      when: ansible_distribution == "Rocky"
 
-    # === resolv.conf overwrite ===
-    - name: Disable and stop systemd-resolved
+    - name: Restart and enable bind9 (Ubuntu)
+      ansible.builtin.systemd:
+        name: bind9
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+    # === resolv.conf ===
+    - name: Disable and stop systemd-resolved (if exists)
       ansible.builtin.systemd:
         name: systemd-resolved
         state: stopped
