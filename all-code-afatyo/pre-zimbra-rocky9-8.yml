@@ -101,6 +101,7 @@
         state: present
       when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 8
 
+    # === Wait for apt lock (Ubuntu) ===
     - name: Wait for apt lock to be released
       ansible.builtin.shell: |
         while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
@@ -266,28 +267,90 @@
         enabled: yes
       when: ansible_distribution == "Ubuntu"
 
-    # === resolv.conf ===
-    - name: Disable and stop systemd-resolved (if exists)
+    # === DNS resolver config per OS ===
+    # Rocky 8 → network-scripts
+    - name: Configure DNS for Rocky 8 (network-scripts)
+      ansible.builtin.lineinfile:
+        path: "/etc/sysconfig/network-scripts/ifcfg-ens18"
+        regexp: '^{{ item.key }}='
+        line: "{{ item.key }}={{ item.value }}"
+        create: yes
+      loop:
+        - { key: "DNS1", value: "{{ ip_address }}" }
+        - { key: "DNS2", value: "8.8.8.8" }
+        - { key: "DNS3", value: "1.1.1.1" }
+        - { key: "DOMAIN", value: "{{ domain }}" }
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 8
+
+    - name: Restart network service (Rocky 8)
       ansible.builtin.systemd:
-        name: systemd-resolved
-        state: stopped
-        enabled: no
-      ignore_errors: yes
+        name: network
+        state: restarted
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 8
 
-    - name: Remove systemd-resolved symlink if exists
-      ansible.builtin.file:
-        path: /etc/resolv.conf
-        state: absent
-      ignore_errors: yes
+    # Rocky 9 → NetworkManager .nmconnection
+    - name: Get active connection name (Rocky 9)
+      ansible.builtin.command: nmcli -t -f NAME connection show --active
+      register: nmcli_conn
+      changed_when: false
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 9
 
-    - name: Configure resolv.conf
+    - name: Configure DNS for Rocky 9 (nmconnection)
+      ansible.builtin.blockinfile:
+        path: "/etc/NetworkManager/system-connections/{{ nmcli_conn.stdout }}.nmconnection"
+        block: |
+          [ipv4]
+          dns={{ ip_address }};8.8.8.8;1.1.1.1;
+          dns-search={{ domain }};
+          method=auto
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 9
+
+    - name: Restart NetworkManager (Rocky 9)
+      ansible.builtin.systemd:
+        name: NetworkManager
+        state: restarted
+      when: ansible_distribution == "Rocky" and ansible_distribution_major_version | int == 9
+
+    # Ubuntu 22 → Update
+    - name: Disable cloud-init network config (Ubuntu 22)
       ansible.builtin.copy:
-        dest: /etc/resolv.conf
+        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
         content: |
-          search {{ domain }}
-          nameserver {{ ip_address }}
-          nameserver 8.8.8.8
-          nameserver 1.1.1.1
+          network: {config: disabled}
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version | int == 22
+
+    - name: Ensure cloud-init network config is disabled (Ubuntu 22)
+      ansible.builtin.copy:
+        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+        content: |
+          network: {config: disabled}
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version | int == 22
+
+    - name: Generate clean netplan config (Ubuntu 22)
+      ansible.builtin.copy:
+        dest: /etc/netplan/01-netcfg.yaml
+        content: |
+          network:
+              version: 2
+              ethernets:
+                  ens18:
+                      addresses:
+                          - {{ ip_address }}/24
+                      nameservers:
+                          addresses:
+                              - {{ ip_address }}
+                              - 8.8.8.8
+                              - 1.1.1.1
+                          search:
+                              - {{ domain }}
+                      routes:
+                          - to: default
+                            via: {{ gateway }}
         owner: root
         group: root
         mode: '0644'
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version | int == 22
+
+    - name: Apply netplan (Ubuntu 22)
+      ansible.builtin.command: netplan apply
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version | int == 22
