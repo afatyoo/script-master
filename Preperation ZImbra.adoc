@@ -11,7 +11,7 @@ dnf install ansible-core
 
 ----
 wget -c https://github.com/afatyoo/script-master/blob/main/all-code-afatyo/inventory
-wget -c https://github.com/afatyoo/script-master/blob/main/all-code-afatyo/pre-zimbra-rocky9-8.yml
+wget -c https://raw.githubusercontent.com/afatyoo/script-master/refs/heads/main/all-code-afatyo/pre-zimbra-rocky9-8.yml
 ----
 
 
