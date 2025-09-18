@@ -4,7 +4,7 @@ echo "= Initial Setup Carbonio Script for Ubuntu 22  ="
 echo "= by: TYO-CHAN                                 ="
 echo "================================================" 
 set -e
-sleap 3
+sleep 3
 # ==== Check Static IP or DHCP ====
 echo
 echo
@@ -35,7 +35,7 @@ else
     exit 1
 fi
 
-sleap 3
+sleep 3
 # ==== Update system ====
 echo
 echo
@@ -55,7 +55,7 @@ else
     exit 1
 fi
 
-sleap 3
+sleep 3
 # ==== Install required packages ====
 echo
 echo
@@ -66,7 +66,7 @@ else
     sudo $PKG install -y dnsmasq chrony net-tools curl vim resolvconf perl python3
 fi
 
-sleap 3
+sleep 3
 # ==== Setup /etc/hosts & hostname ====
 echo
 echo
@@ -98,7 +98,7 @@ echo "$IPADDRESS   $HOSTNAME.$DOMAIN       $HOSTNAME" >> /etc/hosts
 # Set hostname
 hostnamectl set-hostname $HOSTNAME.$DOMAIN
 
-sleap 3
+sleep 3
 # ==== Setup chrony ====
 echo
 echo
@@ -115,7 +115,7 @@ fi
 timedatectl set-timezone Asia/Jakarta
 timedatectl set-ntp true
 
-sleap 3
+sleep 3
 # ==== Disable Firewall ====
 echo
 echo
@@ -128,7 +128,7 @@ else
     echo "🔥 UFW sudah dimatikan."
 fi
 
-sleap 3
+sleep 3
 echo 
 echo 
 echo "===================================================================="
