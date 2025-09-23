@@ -6,7 +6,7 @@ dnf install ansible-core
 ----
 * Jalankan perintah berikut untuk installasi Ansible di Ubuntu
 ----
-dnf install ansible-core
+apt install ansible-core
 ----
 
 * Buat directory terpisah misal preperation Zimbra
