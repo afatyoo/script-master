@@ -69,3 +69,5 @@ Adjust the hosts according to your environment.
 This project is released under the *GPL-3.0-only* license.  
 You are free to use, modify, and distribute it under the terms of this license.
 
+See the link:https://github.com/afatyoo/script-master/blob/main/Directory%20Ansible%20Carbonio%20CE%20Install/LICENSE[LICENSE] file for details.
+
