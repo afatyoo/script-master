@@ -15,10 +15,10 @@ The playbook simplifies and speeds up the installation process by making it cons
 == ⚙️ Usage
 
 . *Edit the Inventory*  
-Prepare an inventory file (e.g., `inventoryname`) and adjust it according to your node setup.
+Prepare an inventory file (e.g., `inventoryname`) and adjust it according to your node setup. +
 
 For detailed guidance, check this article:  
-👉 https://afatyo.web.id/menyiapkan-inventory-carbonio-dengan-ansible/[Preparing an Inventory for Carbonio with Ansible]
+👉 https://afatyo.web.id/menyiapkan-inventory-carbonio-dengan-ansible/[Preparing an Inventory for Carbonio with Ansible] +
 
 . *Run the Playbook*  
 Execute the following command to start the installation:
