@@ -132,8 +132,8 @@ sleep 3
 echo 
 echo 
 echo "===================================================================="
-echo "= Setup selesai! Detail:                                           ="
-echo "= - Hostname  : $(hostname)                                        ="
-echo "= - Domain    : $DOMAIN                                            ="
-echo "= - catatan   : DNS server belum di setup silahkan di setup manual ="
+echo "= Setup selesai! Detail:                                           "
+echo "= - Hostname  : $(hostname)                                        "
+echo "= - Domain    : $DOMAIN                                            "
+echo "= - catatan   : DNS server belum di setup silahkan di setup manual" 
 echo "===================================================================="
