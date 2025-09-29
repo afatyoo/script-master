@@ -18,7 +18,7 @@ fi
 
 # ==== Check Static IP or DHCP ====
 echo
-echo "[0/8] Checking network configuration..."
+echo "[0/9] Checking network configuration..."
 IFACE=$(nmcli -t -f DEVICE,STATE d | grep ":connected" | cut -d: -f1 | head -n1)
 BOOTPROTO=$(nmcli -g ipv4.method con show $IFACE)
 if [ "$BOOTPROTO" == "auto" ]; then
@@ -32,14 +32,14 @@ fi
 sleep 3
 # ==== Update system ====
 echo
-echo "[1/8] Updating system..."
+echo "[1/9] Updating system..."
 sudo dnf clean all
 sudo dnf update -y
 
 sleep 3
 # ==== Enable EPEL repo ====
 echo
-echo "[2/8] Installing EPEL repository..."
+echo "[2/9] Installing EPEL repository..."
 if [ "$RHEL_VERSION" -eq 8 ]; then
     dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
     subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
@@ -58,7 +58,7 @@ echo "✅ EPEL & repos tambahan sudah diaktifkan."
 sleep 3
 # ==== Configure Carbonio Repository ====
 echo
-echo "[3/8] Configuring Carbonio repository..."
+echo "[3/9] Configuring Carbonio repository..."
 cat > /etc/yum.repos.d/zextras.repo <<EOF
 [zextras]
 name=zextras
@@ -73,7 +73,7 @@ echo "✅ Carbonio repository ditambahkan ke /etc/yum.repos.d/zextras.repo"
 sleep 3
 # ==== Install required packages ====
 echo
-echo "[4/8] Installing required packages..."
+echo "[4/9] Installing required packages..."
 sudo dnf install -y \
     dnsmasq chrony net-tools curl vim perl python3 \
     tar unzip bzip2
@@ -81,7 +81,7 @@ sudo dnf install -y \
 sleep 3
 # ==== Setup /etc/hosts & hostname ====
 echo
-echo "[5/8] Configuring /etc/hosts and hostname..."
+echo "[5/9] Configuring /etc/hosts and hostname..."
 read -p "Masukkan IP Address server: " IPADDRESS
 read -p "Masukkan Hostname server: " HOSTNAME
 read -p "Masukkan Domain server: " DOMAIN
@@ -108,7 +108,7 @@ hostnamectl set-hostname $HOSTNAME.$DOMAIN
 sleep 3
 # ==== Setup chrony ====
 echo
-echo "[6/8] Configuring Chrony..."
+echo "[6/9] Configuring Chrony..."
 systemctl disable --now ntpd 2>/dev/null || true
 systemctl enable --now chronyd
 
@@ -119,7 +119,7 @@ timedatectl set-ntp true
 sleep 3
 # ==== Disable SELinux ====
 echo
-echo "[7/8] Disabling SELinux..."
+echo "[7/9] Disabling SELinux..."
 if [ -f /etc/selinux/config ]; then
     sed -i s/'SELINUX='/'#SELINUX='/g /etc/selinux/config
     echo 'SELINUX=disabled' >> /etc/selinux/config
@@ -130,17 +130,40 @@ echo "❌ SELinux dimatikan."
 sleep 3
 # ==== Disable Firewall (firewalld, iptables, ip6tables) ====
 echo
-echo "[8/8] Disabling Firewall..."
+echo "[8/9] Disabling Firewall..."
 systemctl stop firewalld iptables ip6tables 2>/dev/null || true
 systemctl disable firewalld iptables ip6tables 2>/dev/null || true
 echo "🔥 Firewall (firewalld, iptables, ip6tables) sudah dimatikan."
 
 sleep 3
+# ==== Install PostgreSQL 16 ====
+echo
+echo "[9/9] Installing PostgreSQL 16..."
+if [ "$RHEL_VERSION" -eq 8 ]; then
+    dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+elif [ "$RHEL_VERSION" -eq 9 ]; then
+    dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+fi
+
+# Disable default PostgreSQL module, lalu install pgsql 16
+dnf -qy module disable postgresql
+dnf install -y postgresql16 postgresql16-server
+
+# Init database
+/usr/pgsql-16/bin/postgresql-16-setup initdb
+
+# Enable & start service
+systemctl enable --now postgresql-16
+
+echo "✅ PostgreSQL 16 terinstall & berjalan."
+
+sleep 3
 echo
 echo "===================================================================="
-echo "= Setup selesai! Detail:                                           "
-echo "= - Hostname  : $(hostname)                                        "
-echo "= - Domain    : $DOMAIN                                            "
-echo "= - Repo      : /etc/yum.repos.d/zextras.repo                      "
-echo "= - Catatan   : DNS server (dnsmasq) belum di setup, lakukan manual"
+echo "= Setup selesai! Detail:                                           ="
+echo "= - Hostname  : $(hostname)                                        ="
+echo "= - Domain    : $DOMAIN                                            ="
+echo "= - Repo      : /etc/yum.repos.d/zextras.repo                      ="
+echo "= - PostgreSQL: version 16 (running)                               ="
+echo "= - Catatan   : DNS server (dnsmasq) belum di setup, lakukan manual="
 echo "===================================================================="
